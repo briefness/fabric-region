@@ -1,6 +1,6 @@
 # my-fabric-region
 
-> A Vue.js project
+> A Vue.js fabric.js project
 
 ## Build Setup
 
