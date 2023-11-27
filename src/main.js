@@ -1,7 +1,7 @@
-import Vue from 'vue'
+import { createApp } from 'vue'
 import App from './App.vue'
+import antDesignVue from 'ant-design-vue';
+import 'ant-design-vue/dist/antd.css'; // or 'ant-design-vue/dist/antd.less'
+import './index.css'
 
-new Vue({
-  el: '#app',
-  render: h => h(App)
-})
+createApp(App).use(antDesignVue).mount('#app')
