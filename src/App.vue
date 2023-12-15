@@ -60,6 +60,7 @@
 <script setup lang="ts">
   import { onMounted, ref, reactive, computed } from 'vue';
   import { Button, Upload, Progress } from 'ant-design-vue';
+  import type { UploadChangeParam } from 'ant-design-vue';
   import { fabric } from 'fabric';
   import logo from './assets/logo.png';
   import bgImage from './assets/bg.jpg';
@@ -99,7 +100,7 @@
         }
 
       initFabric();
-      drawBg();
+      drawBg(bgImage);
       addCanvasEvent();
       dropTool();
       deleteControl(fabricCanvas);
@@ -126,9 +127,11 @@
   }
 
   // 绘制背景图片
-  const drawBg = () => {
+  const drawBg = (bgImageObj: string) => {
+    // 绘制背景前清空画布
+    fabricCanvas.clear();
     // bgImage为图片路径
-    fabric.Image.fromURL(bgImage, function(img) {
+    fabric.Image.fromURL(bgImageObj, function(img) {
       // 设置背景图片，并设置其透明度
       fabricCanvas.setBackgroundImage(img, fabricCanvas.renderAll.bind(fabricCanvas), { opacity: 0.3 });
       // 设置canvas的宽高
@@ -405,10 +408,26 @@
     });
   }
 
+  // 上传文件转化为base64格式
+  const getBase64 = (file) => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = (error) => reject(error);
+    });
+  };
+
   // 上传背景图
-  const uploadBgChange = () => {
+  const uploadBgChange = async (info: UploadChangeParam) => {
     // 上传成功后，调用设置背景的方法即可
-  }
+    console.log(info)
+    if (info.file.status === 'done' || info.file.status === 'error') {
+        const imgUrl = await getBase64(info.file.originFileObj);
+        drawBg(imgUrl);
+        console.log(imgUrl)
+    }
+  };
 
   // 手动背景图校准
   // 实现原理：手动设置canvas 的宽高和背景图的伸缩比例，已达到背景图可以伸缩，而其他对象不会跟随canvas一起伸缩的目标
