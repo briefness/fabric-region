@@ -159,7 +159,8 @@
     // 设置额外属性
     selectedObject.value?.set('uid', uid);
     selectedObject.value?.set('goodsShelfType', type);
-    const text = selectedObject.value._objects[1];
+    // 获取文本对象
+    const text = selectedObject.value.item(1);
     text.set({
         text: type,
     })
@@ -275,6 +276,7 @@
     fabricCanvas.on('object:rotating', function (options) {
         limitObjectArea(options)
         limitObjectIntersect(options);
+        limitTextAngleOfGroup(options);
       })
   }
 
@@ -284,6 +286,16 @@
         limitObjectArea(options)
         limitObjectIntersect(options);
       })
+  }
+
+  // 限制group中的文本对象跟随group一起旋转
+  const limitTextAngleOfGroup = (options) => {
+    // 获取group对象
+    const activeObject = options.target;
+    // 获取文本对象
+    const text = activeObject.item(1);
+    // 设置文本对象的旋转角度
+    text.set({ angle: -activeObject.angle });
   }
 
   // 对象临近时贴边，但不会限制重叠
@@ -408,8 +420,6 @@
         // 设置画布当前缩放级别
         initZoom.value -= expansionRatio;
     }
-    // 设置图片的缩放比例
-    console.log('当前画布缩放比例：', `${initZoom.value * 100}%`);
     // 获取背景图片对象
     const bgImg = fabricCanvas.backgroundImage;
     // 设置 canvas 的宽高
