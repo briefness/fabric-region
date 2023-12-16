@@ -48,9 +48,6 @@
         <Button type="primary" class="mr-10" @click="saveCanvasToJson">
             保存为json
         </Button>
-        <Button type="primary" @click="save">
-            保存
-        </Button>
         <!-- UID信息表单，如果没有UID，则输入UID绑定对象保存，如果存在UID则调用接口获取UID的详细信息展示 -->
         <AttributeForm v-if="selectedObject" style="margin-top: 20px" :uid="selectUid" :type="selectType" @success="setObjectUid" />
       </div>
@@ -446,28 +443,21 @@
     link.click();
   }
 
-  // 保存为json
+  // 调用接口保存canvas信息
   const saveCanvasToJson = () => {
     console.log('canvas json格式：', fabricCanvas.toJSON(['uid', 'goodsShelfType']));
     console.log(JSON.stringify(fabricCanvas.toJSON(['uid', 'goodsShelfType'])));
     // fabricCanvas.clear();
-    setTimeout(() => {
-        // 根据保存的json字符串，重新渲染canvas，注意所有对象的事件都会清除，需要重新添加
-        fabricCanvas.loadFromJSON(JSON.stringify(fabricCanvas.toJSON(['uid', 'goodsShelfType'])), fabricCanvas.renderAll.bind(fabricCanvas), function(o, object) {
-            // 隐藏边框
-            object.hasBorders = false;
-            // 禁用拉伸
-            forbidStretch(object);
-        });
-    }, 3000);
-  }
-
-  // 调用接口保存canvas信息
-  const save = () => {
-    // canvas对象的json字符串
-    const fabricCanvasJsonString = JSON.stringify(fabricCanvas.toJSON(['uid', 'goodsShelfType']));
+    // setTimeout(() => {
+    //     // 根据保存的json字符串，重新渲染canvas，注意所有对象的事件都会清除，需要重新添加
+    //     fabricCanvas.loadFromJSON(JSON.stringify(fabricCanvas.toJSON(['uid', 'goodsShelfType'])), fabricCanvas.renderAll.bind(fabricCanvas), function(o, object) {
+    //         // 隐藏边框
+    //         object.hasBorders = false;
+    //         // 禁用拉伸
+    //         forbidStretch(object);
+    //     });
+    // }, 3000);
     // TODO：调用接口保存此此json字符串
-    console.log('canvas json字符串：', fabricCanvasJsonString)
   }
 
   // 清除canvas上所有对象
