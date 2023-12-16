@@ -58,13 +58,13 @@
 </template>
 
 <script setup lang="ts">
-  import { onMounted, ref, reactive, computed } from 'vue';
+  import { onMounted, ref, reactive, computed, onUnmounted } from 'vue';
   import { Button, Upload, Progress } from 'ant-design-vue';
   import type { UploadChangeParam } from 'ant-design-vue';
   import { fabric } from 'fabric';
   import logo from './assets/logo.png';
   import bgImage from './assets/bg.jpg';
-  import { deleteControl, scaleMark, rotationControl } from './utils/customRender.ts';
+  import { deleteControl, scaleMark, rotationControl, initAligningGuidelines } from './utils/customRender.ts';
   import AttributeForm from './components/AttributeForm.vue';
 
   // 选中的对象
@@ -73,6 +73,8 @@
   // fabric实例化对象
   // 这个不能使用响应式数据，否则会影响fabric的使用
   let fabricCanvas = null;
+  // 粘贴板上的canvas对象
+  let clipboardCanvasObject = null;
   // 伸缩最小比例
   const expansionRatio = 0.01;
   // 初始zoom值
@@ -102,9 +104,26 @@
       initFabric();
       drawBg(bgImage);
       addCanvasEvent();
+      addKeyEvent();
       dropTool();
       deleteControl(fabricCanvas);
       rotationControl();
+      // 绘制对齐辅助线
+      initAligningGuidelines(fabricCanvas);
+  })
+
+  onUnmounted(() => {
+    // 移除监听事件
+    fabricCanvas.off('selection:updated');
+    fabricCanvas.off('selection:created');
+    fabricCanvas.off('object:rotating');
+    fabricCanvas.off('object:moving');
+    fabricCanvas.off('drop');
+    fabricCanvas.off('mouse:down');
+    fabricCanvas.off('mouse:up');
+    fabricCanvas.off('before:render');
+    fabricCanvas.off('after:render');
+    document.removeEventListener('keydown', copyAndPaste);
   })
 
   // 重绘canvas，通过接口返回的canvas json数据
@@ -150,6 +169,58 @@
     // 保存 icon的 url
     dropImgUrl.value = img;
   }
+  // 粘贴和复制事件
+  const copyAndPaste = (e) => {
+    // 不存在选中的对象，则不处理
+    if (!fabricCanvas.getActiveObject()) {
+        return;
+    }
+    // 按下ctrl+c，win+c, command+c, 时，复制
+    if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
+        console.log('点击了复制：', fabricCanvas.getActiveObject());
+        fabricCanvas.getActiveObject().clone(function(cloned) {
+            clipboardCanvasObject = cloned;
+        });
+    }
+    // 按下ctrl+v，win+v, command+v时，粘贴
+    if ((e.ctrlKey || e.metaKey) && e.key === 'v' && clipboardCanvasObject) {
+        clipboardCanvasObject.clone(function(clonedObj) {
+            fabricCanvas.discardActiveObject();
+            console.log('点击了粘贴：', clonedObj);
+            clonedObj.set({
+                left: clonedObj.left + 10,
+                top: clonedObj.top + 10,
+                // 货架类型同步复制
+                goodsShelfType: clonedObj.item(1)?.text,
+                evented: true,
+            });
+            if (clonedObj.type === 'activeSelection') {
+                // active selection needs a reference to the canvas.
+                clonedObj.canvas = fabricCanvas;
+                clonedObj.forEachObject(function(obj) {
+                    forbidStretch(obj);
+                    obj.hasBorders = false;
+                    fabricCanvas.add(obj);
+                });
+                // this should solve the unselectability
+                clonedObj.setCoords();
+            } else {
+                forbidStretch(clonedObj);
+                clonedObj.hasBorders = false;
+                fabricCanvas.add(clonedObj);
+            }
+            clipboardCanvasObject.top += 10;
+            clipboardCanvasObject.left += 10;
+            fabricCanvas.setActiveObject(clonedObj);
+            fabricCanvas.requestRenderAll();
+        });
+    }
+  }
+  // 添加键盘事件
+  const addKeyEvent = () => {
+    // 监听键盘事件
+    document.addEventListener('keydown', copyAndPaste);
+}
   // canvas添加事件（对象left和top的坐标是左上角）
   const addCanvasEvent = () => {
       canvasObjectMoving();
@@ -401,6 +472,8 @@
 
   // 清除canvas上所有对象
   const clearAllCanvasObject = () => {
+    selectedObject.value = null;
+    clipboardCanvasObject = null;
     // 循环遍历所有对象
     fabricCanvas.forEachObject(function(targ) {
         // 移除对象
