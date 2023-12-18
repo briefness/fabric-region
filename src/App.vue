@@ -271,7 +271,7 @@
             originX: 'center',
             originY: 'center'
         })
-        // 初始化空的文字，带后期修改
+        // 初始化空的文字，待后期修改
         const text = new fabric.Text('', {
             fontSize: 24,
             originX: 'center',
@@ -281,8 +281,7 @@
         const group = new fabric.Group([obj, text], {
             left: pointerVpt.x,
             top: pointerVpt.y,
-            // borderColor: 'red',
-            hasBorders: false,
+            hasBorders: false, // 隐藏边框
         });
         forbidStretch(group);
         fabricCanvas.add(group);
@@ -419,16 +418,14 @@
   // 上传背景图
   const uploadBgChange = async (info: UploadChangeParam) => {
     // 上传成功后，调用设置背景的方法即可
-    console.log(info)
     if (info.file.status === 'done' || info.file.status === 'error') {
         const imgUrl = await getBase64(info.file.originFileObj);
         drawBg(imgUrl);
-        console.log(imgUrl)
     }
   };
 
   // 手动背景图校准
-  // 实现原理：手动设置canvas 的宽高和背景图的伸缩比例，已达到背景图可以伸缩，而其他对象不会跟随canvas一起伸缩的目标
+  // 实现原理：手动设置canvas 的宽高和背景图的伸缩比例，以达到背景图可以伸缩，而其他对象不会跟随canvas一起伸缩的目标
   const canvasSetZoom = (type) => {
     if (type === 'add') {
         // 设置画布当前缩放级别
