@@ -58,6 +58,7 @@
   import { onMounted, ref, reactive, computed, onUnmounted } from 'vue';
   import { Button, Upload, Progress } from 'ant-design-vue';
   import type { UploadChangeParam } from 'ant-design-vue';
+  import { cloneDeep } from 'lodash-es';
   import { fabric } from 'fabric';
   import logo from './assets/logo.png';
   import bgImage from './assets/bg.jpg';
@@ -147,7 +148,7 @@
   // 绘制背景图片
   const drawBg = (bgImageObj: string) => {
     // 绘制背景前清空画布
-    fabricCanvas.clear();
+    // fabricCanvas.clear();
     // bgImage为图片路径
     fabric.Image.fromURL(bgImageObj, function(img) {
       // 设置背景图片，并设置其透明度
@@ -366,8 +367,14 @@
     const option = {
       quality: 1,
     };
+    // 深拷贝canvas，以达到不影响原画板的目的
+    const fabricCanvasClone = cloneDeep(fabricCanvas);
+    // 如果需要隐藏背景图导出，则使用此方法
+    if (true) {
+        fabricCanvasClone.setBackgroundImage(null);
+    }
     // 如果canvas中存在跨域问题的图片链接，toDataURL会报错
-      const dataUrl = fabricCanvas.toDataURL(option);
+    const dataUrl = fabricCanvasClone.toDataURL(option);
 
     // 创建一个链接元素
     const link = document.createElement('a');
