@@ -1,56 +1,9 @@
 <template>
-    <div class="flex h-full">
-      <!-- 工具图标库 TODO: 可展开/收起 -->
-      <div class="tool-content flex flex-wrap">
-        <div class="tool-content-item" v-for="icon in toolIconList" :key="icon" draggable="true" v-on:dragstart="(e) => handleDrag(icon, e)">
-            <img
-                :src="icon"
-                :alt="icon"
-                style="width: 30px; height: 30px;"
-                class="pointer"
-            />
-        </div>
-      </div>
-      <!-- 绘制区 -->
-      <div>
-        <!-- 上传门店图，TODO: 需要限制只能上传图片 -->
-        <Upload
-            name="file"
-            action="https://www.mocky.io/v2/5cc8019d300000980a055e76"
-            :showUploadList="false"
-            @change="uploadBgChange"
-        >
-            <Button type="primary" class="mr-10">
-                上传门店图
-            </Button>
-        </Upload>
-        <Button type="primary" @click="clearAllCanvasObject">
-            清空
-        </Button>
-        <div class="flex item-center justify-center">
-            <Button type="primary" @click="canvasSetZoom('sub')" class="mr-10"> - </Button>
-            <Progress
-                stroke-color="#ccc"
-                :showInfo="false"
-                :percent="initZoom * 10"
-            />
-            <span class="mr-10">{{ zoom }}</span>
-            <Button type="primary" @click="canvasSetZoom('add')"> + </Button>
-        </div>
+    <div>
         <!-- 绘制图层 -->
-        <canvas id="canvas" class="mt-20" />
-      </div>
-      <!-- 对象内容 TODO: 可展开/收起-->
-      <div>
-        <Button type="primary" class="mr-10" @click="exportCanvasToPNG">
-            导出为png
-        </Button>
-        <Button type="primary" class="mr-10" @click="saveCanvasToJson">
-            保存为json
-        </Button>
+        <canvas id="canvas"/>
         <!-- UID信息表单，如果没有UID，则输入UID绑定对象保存，如果存在UID则调用接口获取UID的详细信息展示 -->
-        <AttributeForm v-if="selectedObject" style="margin-top: 20px" :uid="selectUid" :type="selectType" @success="setObjectUid" />
-      </div>
+        <AttributeForm :modelVisible="visible" style="margin-top: 20px" :uid="selectUid" :type="selectType" @success="setObjectUid" @close="closeModel" />
     </div>
 </template>
 
@@ -69,23 +22,15 @@
 
   // 选中的对象
   const selectedObject = ref(null);
+
+  const visible = ref(false);
   
   // fabric实例化对象
   // 这个不能使用响应式数据，否则会影响fabric的使用
   let fabricCanvas = null;
-  // 粘贴板上的canvas对象
-  let clipboardCanvasObject = null;
-  // 伸缩最小比例
-  const expansionRatio = 0.01;
+  let touchState: any = null
   // 初始zoom值
   const initZoom = ref(1);
-  // 拖拽的外部图片url
-  const dropImgUrl = ref('');
-  // 拖拽外部图片的坐标
-  const targetImgCoord = ref({left: 0, top: 0});
-
-  // 工具图标列表
-  const toolIconList = ref<String[]>([]);
 
   // 被选中对象的uid
   const selectUid = computed(() => selectedObject.value?.get('uid') ?? '');
@@ -96,48 +41,55 @@
   const zoom = computed(() => `${Math.floor(initZoom.value * 100)}%`);
   
   onMounted(() => {
-        // 工具库
-        for(let index = 400; index < 430; index++) {
-            toolIconList.value.push(`https://nihaojob.github.io/vue-fabric-editor-static/svg/${index}.svg`);
-        }
-
       initFabric();
+      canvasObjectSelected();
       drawBg(bgImage);
-      addCanvasEvent();
-      addKeyEvent();
-      dropTool();
-      deleteControl(fabricCanvas);
-      rotationControl();
-      // 绘制对齐辅助线
-      initAligningGuidelines(fabricCanvas);
+      fabric.loadSVGFromURL('https://nihaojob.github.io/vue-fabric-editor-static/svg/400.svg', function(objects, options) {
+        var obj = fabric.util.groupSVGElements(objects, options);
+        // 设置缩放
+        obj.scale(0.1);
+        obj.set({
+            originX: 'center',
+            originY: 'center'
+        })
+        // 初始化空的文字，待后期修改
+        const text = new fabric.Text('', {
+            fontSize: 24,
+            originX: 'center',
+            originY: 'center'
+        });
+        // 创建工具和文字组
+        const group = new fabric.Group([obj, text], {
+            left: 20,
+            top: 100,
+            hasBorders: false, // 隐藏边框
+            hasControls: false, // 禁止控制
+            // selectable: false, // 禁止选中
+        });
+        fabricCanvas.add(group);
+    });
+    document.addEventListener('touchstart', updateTouchState, false)
+
+    document.addEventListener('touchmove', updateTouchEndState, false)
+
+    document.addEventListener('touchend', updateTouchEnd, false)
   })
 
   onUnmounted(() => {
     // 移除监听事件
     fabricCanvas.off('selection:updated');
     fabricCanvas.off('selection:created');
-    fabricCanvas.off('object:rotating');
-    fabricCanvas.off('object:moving');
-    fabricCanvas.off('drop');
-    fabricCanvas.off('mouse:down');
-    fabricCanvas.off('mouse:up');
-    fabricCanvas.off('before:render');
-    fabricCanvas.off('after:render');
-    document.removeEventListener('keydown', copyAndPaste);
+    document.removeEventListener('touchstart', updateTouchState, false)
+
+    document.removeEventListener('touchmove', updateTouchEndState, false)
+
+    document.removeEventListener('touchend', updateTouchEnd, false)
   })
 
-  // 重绘canvas，通过接口返回的canvas json数据
-  const reDrawFromCanvasJson = () => {
-    // 1. 请求接口，获取保存的canvas json数据
-    const canvasJson = JSON.stringify(fabricCanvas.toJSON(['uid', 'goodsShelfType']))
-    // 2. 根据保存的json字符串，重新渲染canvas，注意所有对象的事件都会清除，需要重新添加
-    fabricCanvas.loadFromJSON(canvasJson, fabricCanvas.renderAll.bind(fabricCanvas), function(o, object) {
-        // 隐藏边框
-        object.hasBorders = false;
-        // 禁用拉伸
-        forbidStretch(object);
-    });
+  const closeModel = () => {
+    visible.value = false;
   }
+
   
   // 初始化fabric对象
   const initFabric = () => {
@@ -147,85 +99,17 @@
 
   // 绘制背景图片
   const drawBg = (bgImageObj: string) => {
-    // 绘制背景前清空画布
-    // fabricCanvas.clear();
     // bgImage为图片路径
     fabric.Image.fromURL(bgImageObj, function(img) {
       // 设置背景图片，并设置其透明度
       fabricCanvas.setBackgroundImage(img, fabricCanvas.renderAll.bind(fabricCanvas), { opacity: 0.3 });
+      const zoomValue = document.body.clientWidth / img.width;
       // 设置canvas的宽高
-      fabricCanvas.setWidth(img.width);
-      fabricCanvas.setHeight(img.height);
-      // 绘制刻度线
-    //   scaleMark(fabricCanvas);
+      fabricCanvas.setWidth(document.body.clientWidth);
+      fabricCanvas.setHeight(img.height * zoomValue);
+      console.log(zoomValue)
+      fabricCanvas.setZoom(zoomValue)
     });
-  }
-
-  // 拖拽tool icon
-  const handleDrag = (img, ev) => {
-    // 保存工具icon的坐标（鼠标相对icon的坐标）
-    targetImgCoord.left = ev.offsetX;
-    targetImgCoord.top = ev.offsetY;
-    // 保存 icon的 url
-    dropImgUrl.value = img;
-  }
-  // 粘贴和复制事件
-  const copyAndPaste = (e) => {
-    // 不存在选中的对象，则不处理
-    if (!fabricCanvas.getActiveObject()) {
-        return;
-    }
-    // 按下ctrl+c，win+c, command+c, 时，复制
-    if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
-        console.log('点击了复制：', fabricCanvas.getActiveObject());
-        fabricCanvas.getActiveObject().clone(function(cloned) {
-            clipboardCanvasObject = cloned;
-        });
-    }
-    // 按下ctrl+v，win+v, command+v时，粘贴
-    if ((e.ctrlKey || e.metaKey) && e.key === 'v' && clipboardCanvasObject) {
-        clipboardCanvasObject.clone(function(clonedObj) {
-            fabricCanvas.discardActiveObject();
-            console.log('点击了粘贴：', clonedObj);
-            clonedObj.set({
-                left: clonedObj.left + 10,
-                top: clonedObj.top + 10,
-                // 货架类型同步复制
-                goodsShelfType: clonedObj.item(1)?.text,
-                evented: true,
-            });
-            if (clonedObj.type === 'activeSelection') {
-                // active selection needs a reference to the canvas.
-                clonedObj.canvas = fabricCanvas;
-                clonedObj.forEachObject(function(obj) {
-                    forbidStretch(obj);
-                    obj.hasBorders = false;
-                    fabricCanvas.add(obj);
-                });
-                // this should solve the unselectability
-                clonedObj.setCoords();
-            } else {
-                forbidStretch(clonedObj);
-                clonedObj.hasBorders = false;
-                fabricCanvas.add(clonedObj);
-            }
-            clipboardCanvasObject.top += 10;
-            clipboardCanvasObject.left += 10;
-            fabricCanvas.setActiveObject(clonedObj);
-            fabricCanvas.requestRenderAll();
-        });
-    }
-  }
-  // 添加键盘事件
-  const addKeyEvent = () => {
-    // 监听键盘事件
-    document.addEventListener('keydown', copyAndPaste);
-}
-  // canvas添加事件（对象left和top的坐标是左上角）
-  const addCanvasEvent = () => {
-      canvasObjectMoving();
-      canvasObjectRotating();
-      canvasObjectSelected();
   }
 
   // 选中对象添加额外属性uid
@@ -246,260 +130,65 @@
     fabricCanvas.on('selection:created', function (options) {
         // 被选中的对象数据
         selectedObject.value = options.selected[0];
-        console.log('选中对象：', selectedObject.value);
+        visible.value = true;
+        fabricCanvas.discardActiveObject();
     })
     fabricCanvas.on('selection:updated', function (options) {
         // 被选中的对象数据
         selectedObject.value = options.selected[0];
-        console.log('选中对象：', selectedObject.value);
+        visible.value = true;
+        fabricCanvas.discardActiveObject();
     })
   }
 
-  // 禁止拉伸宽高
-  const forbidStretch = (obj) => {
-    ['tl', 'bl', 'tr', 'br', 'ml', 'mb', 'mr', 'mt'].forEach(element => {
-        obj.setControlVisible(element, false);
-    });
-  };
-
-  // 绘制svg
-  const drawSvg = (pointerVpt) => {
-    fabric.loadSVGFromURL(dropImgUrl.value, function(objects, options) {
-        var obj = fabric.util.groupSVGElements(objects, options);
-        // 设置缩放
-        obj.scale(0.1);
-        obj.set({
-            originX: 'center',
-            originY: 'center'
-        })
-        // 初始化空的文字，待后期修改
-        const text = new fabric.Text('', {
-            fontSize: 24,
-            originX: 'center',
-            originY: 'center'
-        });
-        // 创建工具和文字组
-        const group = new fabric.Group([obj, text], {
-            left: pointerVpt.x,
-            top: pointerVpt.y,
-            hasBorders: false, // 隐藏边框
-        });
-        forbidStretch(group);
-        fabricCanvas.add(group);
-    });
-
+  const updateTouchState = (evt) => {
+    touchState = {
+        startX: evt.touches[0].pageX,
+        startY: evt.touches[0].pageY,
+        endX: evt.touches[0].pageX,
+        endY: evt.touches[0].pageY,
+        startX2: evt.touches[1] ? evt.touches[1].pageX : -1,
+        startY2: evt.touches[1] ? evt.touches[1].pageY: -1,
+        endX2: evt.touches[1] ? evt.touches[1].pageX : -1,
+        endY2: evt.touches[1] ? evt.touches[1].pageY : -1
+    }
   }
 
-  // 拖拽外部图片到canvas进行绘制
-  const dropTool = () => {
-    fabricCanvas.on('drop', function (options) {
-        const offset = {
-            left: fabricCanvas.getSelectionElement().getBoundingClientRect().left,
-            top: fabricCanvas.getSelectionElement().getBoundingClientRect().top
+  const updateTouchEndState = (evt) => {
+    if (touchState === null) {
+        return
+    }
+    touchState.endX = evt.touches[0].pageX
+    touchState.endY = evt.touches[0].pageY
+    touchState.endX2 = evt.touches[1] ? evt.touches[1].pageX : -1
+    touchState.endY2 = evt.touches[1] ? evt.touches[1].pageY : -1
+  }
+
+  const updateTouchEnd = (evt) => {
+    if (touchState === null) {
+        return
+    }
+    // 计算两点的距离
+    const getDistance = function (startX, startY, endX, endY) {
+        return Math.hypot(endX - startX, endY - startY)
+    }
+    if (touchState.startX2 !== -1 && touchState.endX2 !== -1 && touchState.startY2 != -1 && touchState.endY2 !== -1) {
+        let distanceStart = getDistance(touchState.startX, touchState.startY, touchState.startX2, touchState.startY2)
+        let distanceEnd = getDistance(touchState.endX, touchState.endY, touchState.endX2, touchState.endY2);
+        //起始时两点距离和结束时两点距离进行比较，判断是放大还是缩小
+        if(distanceStart < distanceEnd) {
+            console.log('放大')
+        }else if (distanceStart > distanceEnd) {
+            console.log('缩小')
         }
-
-            // 鼠标坐标转换成画布的坐标（未经过缩放和平移的坐标）
-        const point = {
-            x: options.e.x - offset.left - targetImgCoord.left,
-            y: options.e.y - offset.top - targetImgCoord.top,
-        }
-
-        // 转换后的坐标，restorePointerVpt 不受视窗变换的影响
-        const pointerVpt = fabricCanvas.restorePointerVpt(point);
-        // 这个是绘制SVG的，如果要绘制图片，用下面注释的方法
-        drawSvg(pointerVpt);
-    //     const img = new Image();
-    //     img.src = dropImgUrl.value;
-    //     img.addEventListener('load', () => {
-    //       const imag = fabric.Image(img);
-    //       imag.set({
-    //         left: pointerVpt.x,
-    //         top: pointerVpt.y,
-    //       })
-    //       fabricCanvas.add(imag);
-    //   });
-        // console.log(dropImgUrl.value, '======')
-        // fabric.util.loadImage(dropImgUrl.value, function(image) {
-        //     console.log(image, '-----image')
-        //     var object = new fabric.Image(image);
-        //     object.set({
-        //         left: pointerVpt.x,
-        //         top: pointerVpt.y,
-        //     });
-        //     console.log(object, '======object')
-        //     fabricCanvas.add(object);
-
-        // }, {
-        //     crossOrigin: 'anonymous'
-        // })
-
-        // const image = new Image();
-        // image.setAttribute('crossOrigin', 'anonymous');
-        // image.src = dropImgUrl.value;
-        // const fabricImage = new fabric.Image(image, {
-        //     left: pointerVpt.x,
-        //     top: pointerVpt.y,
-        // })
-        // fabricCanvas.add(fabricImage);
-    })
-  }
-
-  // 监控 fabricCanvas 的 rotating 方法
-  const canvasObjectRotating = () => {
-    fabricCanvas.on('object:rotating', function (options) {
-        limitObjectArea(options)
-        limitObjectIntersect(options, fabricCanvas);
-        limitTextAngleOfGroup(options);
-      })
-  }
-
-  // 监控 fabricCanvas 的 moving 方法
-  const canvasObjectMoving = () => {
-      fabricCanvas.on('object:moving', function (options) {
-        limitObjectArea(options)
-        limitObjectIntersect(options, fabricCanvas);
-      })
-  }
-
-  // 导出为png图片
-  const exportCanvasToPNG = () => {
-    // 可以添加配置
-    const option = {
-      quality: 1,
-    };
-    // 深拷贝canvas，以达到不影响原画板的目的
-    const fabricCanvasClone = cloneDeep(fabricCanvas);
-    // 如果需要隐藏背景图导出，则使用此方法
-    if (true) {
-        fabricCanvasClone.setBackgroundImage(null);
     }
-    // 如果canvas中存在跨域问题的图片链接，toDataURL会报错
-    const dataUrl = fabricCanvasClone.toDataURL(option);
-
-    // 创建一个链接元素
-    const link = document.createElement('a');
-    link.href = dataUrl;
-    link.download = '店铺平面图.png';
-    // 模拟点击链接进行下载
-    link.click();
-  }
-
-  // 调用接口保存canvas信息
-  const saveCanvasToJson = () => {
-    console.log('canvas json格式：', fabricCanvas.toJSON(['uid', 'goodsShelfType']));
-    console.log(JSON.stringify(fabricCanvas.toJSON(['uid', 'goodsShelfType'])));
-    // fabricCanvas.clear();
-    // setTimeout(() => {
-    //     // 根据保存的json字符串，重新渲染canvas，注意所有对象的事件都会清除，需要重新添加
-    //     fabricCanvas.loadFromJSON(JSON.stringify(fabricCanvas.toJSON(['uid', 'goodsShelfType'])), fabricCanvas.renderAll.bind(fabricCanvas), function(o, object) {
-    //         // 隐藏边框
-    //         object.hasBorders = false;
-    //         // 禁用拉伸
-    //         forbidStretch(object);
-    //     });
-    // }, 3000);
-    // TODO：调用接口保存此此json字符串
-  }
-
-  // 清除canvas上所有对象
-  const clearAllCanvasObject = () => {
-    selectedObject.value = null;
-    clipboardCanvasObject = null;
-    // 循环遍历所有对象
-    fabricCanvas.forEachObject(function(targ) {
-        // 移除对象
-        fabricCanvas.remove(targ);
-    });
-  }
-
-  // 上传文件转化为base64格式
-  const getBase64 = (file) => {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = (error) => reject(error);
-    });
-  };
-
-  // 上传背景图
-  const uploadBgChange = async (info: UploadChangeParam) => {
-    // 上传成功后，调用设置背景的方法即可
-    if (info.file.status === 'done' || info.file.status === 'error') {
-        const imgUrl = await getBase64(info.file.originFileObj);
-        drawBg(imgUrl);
-    }
-  };
-
-  // 手动背景图校准
-  // 实现原理：手动设置canvas 的宽高和背景图的伸缩比例，以达到背景图可以伸缩，而其他对象不会跟随canvas一起伸缩的目标
-  const canvasSetZoom = (type) => {
-    if (type === 'add') {
-        // 设置画布当前缩放级别
-        initZoom.value += expansionRatio;
-    } else {
-        // 设置画布当前缩放级别
-        initZoom.value -= expansionRatio;
-    }
-    // 获取背景图片对象
-    const bgImg = fabricCanvas.backgroundImage;
-    // 设置 canvas 的宽高
-    fabricCanvas.setWidth(bgImg.width * initZoom.value);
-    fabricCanvas.setHeight(bgImg.height * initZoom.value);
-    // 背景图片伸缩
-    bgImg.scaleX = bgImg.scaleY = initZoom.value;
-    fabricCanvas.renderAll();
   }
 </script>
 <style>
     #app {
         height: 100%;
-        padding: 30px;
+        padding: 0;
         margin: 0 !important;
-    }
-    .flex {
-        display: flex;
-        align-content: flex-start;
-    }
-    .item-center {
-        align-items: center;
-    }
-    .justify-center {
-        justify-content: center;
-    }
-    .flex-wrap {
-        flex-wrap: wrap;
-    }
-    .h-full {
-        height: 100%;
-    }
-    .mt-20 {
-        margin-top: 20px;
-    }
-    .mr-10 {
-        margin-right: 10px;
-    }
-    .pointer {
-        cursor: pointer;
-    }
-    .tool-content {
-        width: 282px;
-        height: 100%;
-        margin-right: 30px;
-        border: 1px solid #ccc;
-        padding: 10px;
-    }
-    .tool-content-item {
-        width: 50px;
-        height: 50px;
-        text-align: center;
-        line-height: 50px;
-        background-color: #ddd;
-        margin-right: 2px;
-        margin-bottom: 6px;
-    }
-    .ant-progress-line {
-        width: 40% !important;
     }
 </style>
   

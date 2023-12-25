@@ -1,48 +1,56 @@
 <template>
-    <Form
-        :model="formState"
-        :label-col="{ span: 8 }"
-        :wrapper-col="{ span: 16 }"
-        autocomplete="off"
-        @finish="onFinish"
+    <Modal
+        v-model:visible="visible"
+        title="货架信息"
+        okText="提交"
+        cancelText="取消"
+        @ok="handleOk"
+        @cancel="handleCancel"
     >
-        <FormItem
-            label="UID"
-            name="uid"
-            :rules="[{ required: true, message: '请输入uid' }]"
+        <Form
+            :model="formState"
+            :label-col="{ span: 6 }"
+            :wrapper-col="{ span: 18 }"
+            autocomplete="off"
         >
-            <Input v-model:value="formState.uid" />
-        </FormItem>
+            <FormItem
+                label="UID"
+                name="uid"
+                :rules="[{ required: true, message: '请输入uid' }]"
+            >
+                <Input v-model:value="formState.uid" />
+            </FormItem>
 
-        <FormItem
-            label="货架类型"
-            name="type"
-            :rules="[{ required: true, message: '请输入货架类型' }]"
-        >
-            <Input v-model:value="formState.type" />
-        </FormItem>
-
-        <FormItem :wrapper-col="{ offset: 8, span: 16 }">
-            <Button type="primary" html-type="submit">保存</Button>
-        </FormItem>
-    </Form>
+            <FormItem
+                label="货架类型"
+                name="type"
+                :rules="[{ required: true, message: '请输入货架类型' }]"
+            >
+                <Input v-model:value="formState.type" />
+            </FormItem>
+        </Form>
+    </Modal>
 </template>
 
 <script setup lang="ts">
-    import { reactive, watch } from 'vue';
-    import { Button, Form, FormItem, Input } from 'ant-design-vue';
+    import { reactive, watch, ref } from 'vue';
+    import { Button, Form, FormItem, Input, Modal } from 'ant-design-vue';
 
-    const emit = defineEmits(['success']);
+    const visible = ref(false);
+    const emit = defineEmits(['success', 'close']);
     const props = defineProps<{
         uid?: string,
-        type?: string
+        type?: string,
+        modelVisible?: boolean,
     }>();
 
     watch(
         () => props,
         (val) => {
+            console.log(props, '=====')
             formState.uid = val.uid;
             formState.type = val.type;
+            visible.value = val.modelVisible;
             // TODO：如果UID存在，则调用接口获取此uid的信息展示
         },
         { deep: true }
@@ -53,9 +61,16 @@
         type: '',
     });
 
+    // 取消
+    const handleCancel = () => {
+        emit('close', false);
+    }
+
     // 保存
-    const onFinish = (values: any) => {
-        emit('success', values)
+    const handleOk = () => {
+        console.log(formState)
+        emit('close', false);
+        emit('success', formState);
     };
   
 </script>
