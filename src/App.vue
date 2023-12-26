@@ -13,6 +13,7 @@
   import type { UploadChangeParam } from 'ant-design-vue';
   import { cloneDeep } from 'lodash-es';
   import { fabric } from 'fabric';
+  import Hammer from 'hammerjs';
   import logo from './assets/logo.png';
   import bgImage from './assets/bg.jpg';
   import { deleteControl, rotationControl } from './utils/customRender.ts';
@@ -24,6 +25,9 @@
   const selectedObject = ref(null);
 
   const visible = ref(false);
+
+  // 记录上一次的画布zoom
+  let lastZoom = 1;
   
   // fabric实例化对象
   // 这个不能使用响应式数据，否则会影响fabric的使用
@@ -68,22 +72,30 @@
         });
         fabricCanvas.add(group);
     });
-    document.addEventListener('touchstart', updateTouchState, false)
-
-    document.addEventListener('touchmove', updateTouchEndState, false)
-
-    document.addEventListener('touchend', updateTouchEnd, false)
+    var hammer = new Hammer(document.querySelector('.canvas-container'));
+    hammer.get('pinch').set({ enable: true });
+    hammer.get('pan').set({ direction: Hammer.DIRECTION_ALL });
+    hammer.on('pinch pan', function(ev) {
+        // 缩放
+        if (ev.type == 'pinch') {
+            let zoom = fabricCanvas.getZoom();
+            let zoomRatio = ev.scale / lastZoom;
+            zoom *= zoomRatio;
+            if (zoom > 6) zoom = 6;
+            if (zoom < 0.01) zoom = 0.01;
+            fabricCanvas.zoomToPoint(new fabric.Point(ev.center.x, ev.center.y), zoom);
+            lastZoom = ev.scale;
+        } else if (ev.type == 'pan') {
+            const delta = new fabric.Point(ev.srcEvent.movementX, ev.srcEvent.movementY);
+            fabricCanvas.relativePan(delta);
+        }
+    });
   })
 
   onUnmounted(() => {
     // 移除监听事件
     fabricCanvas.off('selection:updated');
     fabricCanvas.off('selection:created');
-    document.removeEventListener('touchstart', updateTouchState, false)
-
-    document.removeEventListener('touchmove', updateTouchEndState, false)
-
-    document.removeEventListener('touchend', updateTouchEnd, false)
   })
 
   const closeModel = () => {
@@ -139,49 +151,6 @@
         visible.value = true;
         fabricCanvas.discardActiveObject();
     })
-  }
-
-  const updateTouchState = (evt) => {
-    touchState = {
-        startX: evt.touches[0].pageX,
-        startY: evt.touches[0].pageY,
-        endX: evt.touches[0].pageX,
-        endY: evt.touches[0].pageY,
-        startX2: evt.touches[1] ? evt.touches[1].pageX : -1,
-        startY2: evt.touches[1] ? evt.touches[1].pageY: -1,
-        endX2: evt.touches[1] ? evt.touches[1].pageX : -1,
-        endY2: evt.touches[1] ? evt.touches[1].pageY : -1
-    }
-  }
-
-  const updateTouchEndState = (evt) => {
-    if (touchState === null) {
-        return
-    }
-    touchState.endX = evt.touches[0].pageX
-    touchState.endY = evt.touches[0].pageY
-    touchState.endX2 = evt.touches[1] ? evt.touches[1].pageX : -1
-    touchState.endY2 = evt.touches[1] ? evt.touches[1].pageY : -1
-  }
-
-  const updateTouchEnd = (evt) => {
-    if (touchState === null) {
-        return
-    }
-    // 计算两点的距离
-    const getDistance = function (startX, startY, endX, endY) {
-        return Math.hypot(endX - startX, endY - startY)
-    }
-    if (touchState.startX2 !== -1 && touchState.endX2 !== -1 && touchState.startY2 != -1 && touchState.endY2 !== -1) {
-        let distanceStart = getDistance(touchState.startX, touchState.startY, touchState.startX2, touchState.startY2)
-        let distanceEnd = getDistance(touchState.endX, touchState.endY, touchState.endX2, touchState.endY2);
-        //起始时两点距离和结束时两点距离进行比较，判断是放大还是缩小
-        if(distanceStart < distanceEnd) {
-            console.log('放大')
-        }else if (distanceStart > distanceEnd) {
-            console.log('缩小')
-        }
-    }
   }
 </script>
 <style>
