@@ -9,17 +9,23 @@
         <FormItem
             label="UID"
             name="uid"
-            :rules="[{ required: true, message: '请输入uid' }]"
         >
             <Input v-model:value="formState.uid" />
         </FormItem>
 
         <FormItem
-            label="货架类型"
+            label="落位类目"
             name="type"
-            :rules="[{ required: true, message: '请输入货架类型' }]"
         >
             <Input v-model:value="formState.type" />
+        </FormItem>
+
+        <FormItem
+            label="旋转角度"
+            name="angle"
+            :rules="[{ required: true, message: '请输入旋转角度' }]"
+        >
+            <Input v-model:value="formState.angle" />
         </FormItem>
 
         <FormItem :wrapper-col="{ offset: 8, span: 16 }">
@@ -35,7 +41,8 @@
     const emit = defineEmits(['success']);
     const props = defineProps<{
         uid?: string,
-        type?: string
+        type?: string,
+        angle?: number | string,
     }>();
 
     watch(
@@ -43,6 +50,7 @@
         (val) => {
             formState.uid = val.uid;
             formState.type = val.type;
+            formState.angle = val.angle ?? 0;
             // TODO：如果UID存在，则调用接口获取此uid的信息展示
         },
         { deep: true }
@@ -51,10 +59,11 @@
     const formState = reactive<FormState>({
         uid: '',
         type: '',
+        angle: 0,
     });
 
     // 保存
-    const onFinish = (values: any) => {
+    const onFinish = (values: FormState) => {
         emit('success', values)
     };
   

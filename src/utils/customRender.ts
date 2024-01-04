@@ -73,7 +73,7 @@ export function rotationControl() {
     // 旋转图标
     fabric.Object.prototype.controls.mtr = new fabric.Control({
       x: 0,
-      y: -1,
+      y: -1.4,
       cursorStyleHandler: fabric.controlsUtils.rotationStyleHandler,
       actionHandler: fabric.controlsUtils.rotationWithSnapping,
       offsetY: 16,

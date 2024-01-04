@@ -6,7 +6,7 @@
             <img
                 :src="icon"
                 :alt="icon"
-                style="width: 30px; height: 30px;"
+                style="width: 30px;"
                 class="pointer"
             />
         </div>
@@ -24,8 +24,11 @@
                 上传门店图
             </Button>
         </Upload>
-        <Button type="primary" @click="clearAllCanvasObject">
+        <Button type="primary" class="mr-10" @click="clearAllCanvasObject">
             清空
+        </Button>
+        <Button type="primary" @click="deleteActiveObject">
+            删除
         </Button>
         <div class="flex item-center justify-center">
             <Button type="primary" @click="canvasSetZoom('sub')" class="mr-10"> - </Button>
@@ -49,7 +52,14 @@
             保存为json
         </Button>
         <!-- UID信息表单，如果没有UID，则输入UID绑定对象保存，如果存在UID则调用接口获取UID的详细信息展示 -->
-        <AttributeForm v-if="selectedObject" style="margin-top: 20px" :uid="selectUid" :type="selectType" @success="setObjectUid" />
+        <AttributeForm
+            v-if="selectedObject"
+            style="margin-top: 20px"
+            :uid="selectUid"
+            :type="selectType"
+            :angle="selectObjectAngle"
+            @success="setObjectUid"
+        />
       </div>
     </div>
 </template>
@@ -62,9 +72,11 @@
   import { fabric } from 'fabric';
   import logo from './assets/logo.png';
   import bgImage from './assets/bg.jpg';
+  import tool_1 from './assets/1.jpg';
+  import tool_2 from './assets/2.jpg';
   import { deleteControl, rotationControl } from './utils/customRender.ts';
   import { scaleMark, initAligningGuidelines } from './utils/drawTools.ts';
-  import { limitTextAngleOfGroup, limitObjectIntersect, limitObjectArea } from './utils/utils.ts';
+  import { limitTextAngleOfGroup, limitObjectIntersect, limitObjectArea, createGroup } from './utils/utils.ts';
   import AttributeForm from './components/AttributeForm.vue';
 
   // 选中的对象
@@ -84,8 +96,11 @@
   // 拖拽外部图片的坐标
   const targetImgCoord = ref({left: 0, top: 0});
 
+  // 被选中对象的旋转角度
+  const selectObjectAngle = ref(0);
+
   // 工具图标列表
-  const toolIconList = ref<String[]>([]);
+  const toolIconList = ref<String[]>([tool_1, tool_2]);
 
   // 被选中对象的uid
   const selectUid = computed(() => selectedObject.value?.get('uid') ?? '');
@@ -106,7 +121,7 @@
       addCanvasEvent();
       addKeyEvent();
       dropTool();
-      deleteControl(fabricCanvas);
+    //   deleteControl(fabricCanvas);
       rotationControl();
       // 绘制对齐辅助线
       initAligningGuidelines(fabricCanvas);
@@ -123,7 +138,7 @@
     fabricCanvas.off('mouse:up');
     fabricCanvas.off('before:render');
     fabricCanvas.off('after:render');
-    document.removeEventListener('keydown', copyAndPaste);
+    document.removeEventListener('keydown', keydownHandle);
   })
 
   // 重绘canvas，通过接口返回的canvas json数据
@@ -135,14 +150,20 @@
         // 隐藏边框
         object.hasBorders = false;
         // 禁用拉伸
-        forbidStretch(object);
+        // forbidStretch(object);
     });
   }
   
   // 初始化fabric对象
   const initFabric = () => {
     fabricCanvas = new fabric.Canvas('canvas');
-    fabricCanvas.selection = false;
+    // fabricCanvas.selection = false;
+    // 隐藏所有对象的控制点，只保留顶部旋转点
+    ['tl', 'bl', 'tr', 'br', 'ml', 'mb', 'mr', 'mt'].forEach(e => {
+        fabric.Object.prototype.controls[e] = new fabric.Control({
+            render: () => null,
+        });
+    })
   }
 
   // 绘制背景图片
@@ -154,8 +175,9 @@
       // 设置背景图片，并设置其透明度
       fabricCanvas.setBackgroundImage(img, fabricCanvas.renderAll.bind(fabricCanvas), { opacity: 0.3 });
       // 设置canvas的宽高
-      fabricCanvas.setWidth(img.width);
-      fabricCanvas.setHeight(img.height);
+      fabricCanvas.setWidth(img.width * initZoom.value);
+      fabricCanvas.setHeight(img.height * initZoom.value);
+      fabricCanvas.setZoom(initZoom.value);
       // 绘制刻度线
     //   scaleMark(fabricCanvas);
     });
@@ -169,16 +191,50 @@
     // 保存 icon的 url
     dropImgUrl.value = img;
   }
-  // 粘贴和复制事件
-  const copyAndPaste = (e) => {
+
+  // 键盘的keydown事件
+  const keydownHandle = (e) => {
+    const activeObject = fabricCanvas.getActiveObject()
     // 不存在选中的对象，则不处理
-    if (!fabricCanvas.getActiveObject()) {
+    if (!activeObject) {
         return;
     }
+    copyAndPaste(activeObject, e);
+    KeyboardOperateObject(activeObject, e);
+  }
+  // 键盘方向键控制对象移动
+  const KeyboardOperateObject = (activeObject, e) => {
+    const keyCode = e.keyCode; // 获取按下的键值
+    if (keyCode > 36 && keyCode < 41) {
+        // 阻止默认的滚动行为
+        event.preventDefault();
+        switch (keyCode) {
+            case 37: // 左箭头键
+                activeObject.left -= 1; // 向左移动1像素
+                break;
+            
+            case 39: // 右箭头键
+                activeObject.left += 1; // 向右移动1像素
+                break;
+                
+            case 38: // 上箭头键
+                activeObject.top -= 1; // 向上移动1像素
+                break;
+                
+            case 40: // 下箭头键
+                activeObject.top += 1; // 向下移动1像素
+                break;
+        }
+        activeObject.setCoords();
+        fabricCanvas.renderAll();
+    }
+  }
+  // 粘贴和复制事件
+  const copyAndPaste = (activeObject, e) => {
     // 按下ctrl+c，win+c, command+c, 时，复制
     if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
-        console.log('点击了复制：', fabricCanvas.getActiveObject());
-        fabricCanvas.getActiveObject().clone(function(cloned) {
+        activeObject.clone(function(cloned) {
+            console.log('点击了复制：', cloned);
             clipboardCanvasObject = cloned;
         });
     }
@@ -190,22 +246,23 @@
             clonedObj.set({
                 left: clonedObj.left + 10,
                 top: clonedObj.top + 10,
-                // 货架类型同步复制
-                goodsShelfType: clonedObj.item(1)?.text,
                 evented: true,
             });
             if (clonedObj.type === 'activeSelection') {
                 // active selection needs a reference to the canvas.
                 clonedObj.canvas = fabricCanvas;
                 clonedObj.forEachObject(function(obj) {
-                    forbidStretch(obj);
+                    // obj.set({goodsShelfType: obj.item(1)?.text});
+                    // forbidStretch(obj);
                     obj.hasBorders = false;
                     fabricCanvas.add(obj);
                 });
                 // this should solve the unselectability
                 clonedObj.setCoords();
             } else {
-                forbidStretch(clonedObj);
+                // 货架类型同步复制
+                // clonedObj.set({goodsShelfType: clonedObj.item(1)?.text});
+                // forbidStretch(clonedObj);
                 clonedObj.hasBorders = false;
                 fabricCanvas.add(clonedObj);
             }
@@ -219,7 +276,7 @@
   // 添加键盘事件
   const addKeyEvent = () => {
     // 监听键盘事件
-    document.addEventListener('keydown', copyAndPaste);
+    document.addEventListener('keydown', keydownHandle);
 }
   // canvas添加事件（对象left和top的坐标是左上角）
   const addCanvasEvent = () => {
@@ -229,14 +286,17 @@
   }
 
   // 选中对象添加额外属性uid
-  const setObjectUid = ({uid, type}) => {
+  const setObjectUid = ({uid, type, angle}) => {
     // 设置额外属性
     selectedObject.value?.set('uid', uid);
     selectedObject.value?.set('goodsShelfType', type);
-    // 获取文本对象
+    selectObjectAngle.value = parseInt(angle, 10)
+    // 设置旋转角度
+    selectedObject.value?.set('angle', selectObjectAngle.value);
+    // // 获取文本对象
     const text = selectedObject.value.item(1);
     text.set({
-        text: type,
+        angle: -selectObjectAngle.value,
     })
     fabricCanvas.renderAll();
   }
@@ -244,50 +304,67 @@
   // canvas 的选中事件
   const canvasObjectSelected = () => {
     fabricCanvas.on('selection:created', function (options) {
-        // 被选中的对象数据
-        selectedObject.value = options.selected[0];
-        console.log('选中对象：', selectedObject.value);
+        console.log(options)
+        if (options.selected?.length < 2) {
+            // 被选中的对象数据
+            selectedObject.value = options.selected[0];
+            console.log('选中对象created：', selectedObject.value);
+        }
+        forbidStretch(options.selected?.length > 1);
     })
     fabricCanvas.on('selection:updated', function (options) {
-        // 被选中的对象数据
-        selectedObject.value = options.selected[0];
-        console.log('选中对象：', selectedObject.value);
+        console.log(options)
+        if (options.selected?.length < 2) {
+            // 被选中的对象数据
+            selectedObject.value = options.selected[0];
+            console.log('选中对象updated：', selectedObject.value);
+        }
+        forbidStretch(options.selected?.length > 1);
     })
   }
 
-  // 禁止拉伸宽高
-  const forbidStretch = (obj) => {
-    ['tl', 'bl', 'tr', 'br', 'ml', 'mb', 'mr', 'mt'].forEach(element => {
-        obj.setControlVisible(element, false);
-    });
+  // 禁止拉伸宽高， 如果是框选的对个对象，则顶部旋转控制点也不显示
+  const forbidStretch = (isGroup = false) => {
+    fabric.Object.prototype.hasControls = !isGroup;
   };
 
-  // 绘制svg
+  // 绘制图片
   const drawSvg = (pointerVpt) => {
-    fabric.loadSVGFromURL(dropImgUrl.value, function(objects, options) {
-        var obj = fabric.util.groupSVGElements(objects, options);
-        // 设置缩放
-        obj.scale(0.1);
-        obj.set({
-            originX: 'center',
-            originY: 'center'
+    const isSvg = !(/\.jpg$/.test(dropImgUrl.value))
+    if (isSvg) {
+        fabric.loadSVGFromURL(dropImgUrl.value, function(objects, options) {
+            var obj = fabric.util.groupSVGElements(objects, options);
+            // 设置缩放
+            obj.scale(0.1);
+            obj.set({
+                originX: 'center',
+                originY: 'center'
+            })
+            // 初始化空的文字，待后期修改
+            const text = new fabric.Textbox('', {
+                fontSize: 24,
+                originX: 'center',
+                originY: 'center'
+            });
+            createGroup([obj, text], pointerVpt, fabricCanvas);
+        });
+    } else {
+        fabric.util.loadImage(dropImgUrl.value, function(image) {
+            var obj = new fabric.Image(image);
+            obj.scale(0.1);
+            obj.set({
+                originX: 'center',
+                originY: 'center'
+            })
+            // 初始化空的文字，待后期修改
+            const text = new fabric.Textbox('', {
+                fontSize: 24,
+                originX: 'center',
+                originY: 'center'
+            });
+            createGroup([obj, text], pointerVpt, fabricCanvas);
         })
-        // 初始化空的文字，待后期修改
-        const text = new fabric.Text('', {
-            fontSize: 24,
-            originX: 'center',
-            originY: 'center'
-        });
-        // 创建工具和文字组
-        const group = new fabric.Group([obj, text], {
-            left: pointerVpt.x,
-            top: pointerVpt.y,
-            hasBorders: false, // 隐藏边框
-        });
-        forbidStretch(group);
-        fabricCanvas.add(group);
-    });
-
+    }
   }
 
   // 拖拽外部图片到canvas进行绘制
@@ -306,47 +383,16 @@
 
         // 转换后的坐标，restorePointerVpt 不受视窗变换的影响
         const pointerVpt = fabricCanvas.restorePointerVpt(point);
-        // 这个是绘制SVG的，如果要绘制图片，用下面注释的方法
+        // 绘制图片
         drawSvg(pointerVpt);
-    //     const img = new Image();
-    //     img.src = dropImgUrl.value;
-    //     img.addEventListener('load', () => {
-    //       const imag = fabric.Image(img);
-    //       imag.set({
-    //         left: pointerVpt.x,
-    //         top: pointerVpt.y,
-    //       })
-    //       fabricCanvas.add(imag);
-    //   });
-        // console.log(dropImgUrl.value, '======')
-        // fabric.util.loadImage(dropImgUrl.value, function(image) {
-        //     console.log(image, '-----image')
-        //     var object = new fabric.Image(image);
-        //     object.set({
-        //         left: pointerVpt.x,
-        //         top: pointerVpt.y,
-        //     });
-        //     console.log(object, '======object')
-        //     fabricCanvas.add(object);
-
-        // }, {
-        //     crossOrigin: 'anonymous'
-        // })
-
-        // const image = new Image();
-        // image.setAttribute('crossOrigin', 'anonymous');
-        // image.src = dropImgUrl.value;
-        // const fabricImage = new fabric.Image(image, {
-        //     left: pointerVpt.x,
-        //     top: pointerVpt.y,
-        // })
-        // fabricCanvas.add(fabricImage);
     })
   }
 
   // 监控 fabricCanvas 的 rotating 方法
   const canvasObjectRotating = () => {
     fabricCanvas.on('object:rotating', function (options) {
+        console.log('旋转角度：', options.target.angle)
+        selectObjectAngle.value = options.target.angle;
         limitObjectArea(options)
         limitObjectIntersect(options, fabricCanvas);
         limitTextAngleOfGroup(options);
@@ -449,6 +495,15 @@
     // 背景图片伸缩
     bgImg.scaleX = bgImg.scaleY = initZoom.value;
     fabricCanvas.renderAll();
+  }
+  // 删除当前选中的对象
+  const deleteActiveObject = () => {
+    const activeObject = fabricCanvas.getActiveObjects();
+    if (activeObject) {
+      activeObject.map((item) => fabricCanvas.remove(item));
+      fabricCanvas.requestRenderAll();
+      fabricCanvas.discardActiveObject();
+    }
   }
 </script>
 <style>
