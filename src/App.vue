@@ -76,7 +76,7 @@
   import type { UploadChangeParam } from 'ant-design-vue';
   import { cloneDeep } from 'lodash-es';
   import { fabric } from 'fabric';
-  import 'fabric-history';
+  import './utils/history.ts';
   import logo from './assets/logo.png';
   import bgImage from './assets/bg.jpg';
   import tool_1 from './assets/1.jpg';
