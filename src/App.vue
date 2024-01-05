@@ -27,8 +27,14 @@
         <Button type="primary" class="mr-10" @click="clearAllCanvasObject">
             清空
         </Button>
-        <Button type="primary" @click="deleteActiveObject">
+        <Button type="primary" class="mr-10" @click="deleteActiveObject">
             删除
+        </Button>
+        <Button type="primary" class="mr-10" @click="undoOperate">
+            撤销
+        </Button>
+        <Button type="primary" @click="redoOperate">
+            重做
         </Button>
         <div class="flex item-center justify-center">
             <Button type="primary" @click="canvasSetZoom('sub')" class="mr-10"> - </Button>
@@ -70,6 +76,7 @@
   import type { UploadChangeParam } from 'ant-design-vue';
   import { cloneDeep } from 'lodash-es';
   import { fabric } from 'fabric';
+  import 'fabric-history';
   import logo from './assets/logo.png';
   import bgImage from './assets/bg.jpg';
   import tool_1 from './assets/1.jpg';
@@ -85,6 +92,8 @@
   // fabric实例化对象
   // 这个不能使用响应式数据，否则会影响fabric的使用
   let fabricCanvas = null;
+  // 历史记录事件
+  const historyFn = ref(null)
   // 粘贴板上的canvas对象
   let clipboardCanvasObject = null;
   // 伸缩最小比例
@@ -115,7 +124,6 @@
         for(let index = 400; index < 430; index++) {
             toolIconList.value.push(`https://nihaojob.github.io/vue-fabric-editor-static/svg/${index}.svg`);
         }
-
       initFabric();
       drawBg(bgImage);
       addCanvasEvent();
@@ -199,11 +207,16 @@
     if (!activeObject) {
         return;
     }
+    // 不是操作canvas，则不需要响应canvas事件
+    if (e.target.nodeName != 'BODY') {
+        return;
+    }
     copyAndPaste(activeObject, e);
-    KeyboardOperateObject(activeObject, e);
+    keyboardOperateObject(activeObject, e);
+    keyboardDeleteActiveObject(e);
   }
   // 键盘方向键控制对象移动
-  const KeyboardOperateObject = (activeObject, e) => {
+  const keyboardOperateObject = (activeObject, e) => {
     const keyCode = e.keyCode; // 获取按下的键值
     if (keyCode > 36 && keyCode < 41) {
         // 阻止默认的滚动行为
@@ -273,6 +286,13 @@
         });
     }
   }
+  // 键盘删除选中对象
+  const keyboardDeleteActiveObject = (e) => {
+    const keyCode = e.keyCode; // 获取按下的键值
+    if (keyCode == 8) {
+        deleteActiveObject();
+    }
+  }
   // 添加键盘事件
   const addKeyEvent = () => {
     // 监听键盘事件
@@ -326,6 +346,7 @@
   // 禁止拉伸宽高， 如果是框选的对个对象，则顶部旋转控制点也不显示
   const forbidStretch = (isGroup = false) => {
     fabric.Object.prototype.hasControls = !isGroup;
+    fabric.Object.prototype.hasBorders = isGroup;
   };
 
   // 绘制图片
@@ -503,7 +524,15 @@
       activeObject.map((item) => fabricCanvas.remove(item));
       fabricCanvas.requestRenderAll();
       fabricCanvas.discardActiveObject();
+      selectedObject.value = null;
     }
+  }
+
+  const undoOperate = () => {
+    fabricCanvas.undo()
+  }
+  const redoOperate = () => {
+    fabricCanvas.redo()
   }
 </script>
 <style>
