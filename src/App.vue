@@ -90,7 +90,7 @@
   const selectedObject = ref(null);
   
   // fabric实例化对象
-  // 这个不能使用响应式数据，否则会影响fabric的使用
+  // 基于现有fabric版本，因对响应式不友好，不建议把fabric的实例定义为响应式数据
   let fabricCanvas = null;
   // 历史记录事件
   const historyFn = ref(null)
