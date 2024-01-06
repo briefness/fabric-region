@@ -186,6 +186,8 @@
       fabricCanvas.setWidth(img.width * initZoom.value);
       fabricCanvas.setHeight(img.height * initZoom.value);
       fabricCanvas.setZoom(initZoom.value);
+      // 保存绘制背景图片的操作历史
+      fabricCanvas._historySaveAction();
       // 绘制刻度线
     //   scaleMark(fabricCanvas);
     });
@@ -202,13 +204,14 @@
 
   // 键盘的keydown事件
   const keydownHandle = (e) => {
+    // 不是操作canvas，则不需要响应canvas事件
+    if (e.target.nodeName != 'BODY') {
+        return;
+    }
+    keyboardUndo(e);
     const activeObject = fabricCanvas.getActiveObject()
     // 不存在选中的对象，则不处理
     if (!activeObject) {
-        return;
-    }
-    // 不是操作canvas，则不需要响应canvas事件
-    if (e.target.nodeName != 'BODY') {
         return;
     }
     copyAndPaste(activeObject, e);
@@ -291,6 +294,12 @@
     const keyCode = e.keyCode; // 获取按下的键值
     if (keyCode == 8) {
         deleteActiveObject();
+    }
+  }
+  // 键盘撤销操作
+  const keyboardUndo = (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key == 'z') {
+        fabricCanvas.undo();
     }
   }
   // 添加键盘事件

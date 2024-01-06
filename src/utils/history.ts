@@ -1,6 +1,8 @@
 import { fabric } from 'fabric';
+import { dblclickEditing } from './utils'
+
 /**
- * Override the initialize function for the _historyInit();
+ * 重写 initialize
  */
 fabric.Canvas.prototype.initialize = (function (originalFn) {
     return function (...args) {
@@ -11,7 +13,7 @@ fabric.Canvas.prototype.initialize = (function (originalFn) {
   })(fabric.Canvas.prototype.initialize);
   
   /**
-   * Override the dispose function for the _historyDispose();
+   * 重写 dispose
    */
   fabric.Canvas.prototype.dispose = (function (originalFn) {
     return function (...args) {
@@ -22,14 +24,14 @@ fabric.Canvas.prototype.initialize = (function (originalFn) {
   })(fabric.Canvas.prototype.dispose);
   
   /**
-   * Returns current state of the string of the canvas
+   * 返回当前canvas字符串
    */
   fabric.Canvas.prototype._historyNext = function () {
     return JSON.stringify(this.toJSON(this.extraProps));
   };
   
   /**
-   * Returns an object with fabricjs event mappings
+   * 返回事件监听
    */
   fabric.Canvas.prototype._historyEvents = function () {
     return {
@@ -41,7 +43,7 @@ fabric.Canvas.prototype.initialize = (function (originalFn) {
   };
   
   /**
-   * Initialization of the plugin
+   * 初始化历史记录
    */
   fabric.Canvas.prototype._historyInit = function () {
     this.historyUndo = [];
@@ -53,18 +55,17 @@ fabric.Canvas.prototype.initialize = (function (originalFn) {
   };
   
   /**
-   * Remove the custom event listeners
+   * 移除自定义事件监听
    */
   fabric.Canvas.prototype._historyDispose = function () {
     this.off(this._historyEvents());
   };
   
   /**
-   * It pushes the state of the canvas into history stack
+   * 历史记录入栈
    */
-  fabric.Canvas.prototype._historySaveAction = function () {
-    if (this.historyProcessing) return;
-  
+  fabric.Canvas.prototype._historySaveAction = function (e) {
+    if (this.historyProcessing || e?.target.text == '') return;
     const json = this.historyNextState;
     this.historyUndo.push(json);
     this.historyNextState = this._historyNext();
@@ -72,9 +73,7 @@ fabric.Canvas.prototype.initialize = (function (originalFn) {
   };
   
   /**
-   * Undo to latest history.
-   * Pop the latest state of the history. Re-render.
-   * Also, pushes into redo history.
+   * 撤销
    */
   fabric.Canvas.prototype.undo = function (callback) {
     // The undo process will render the new states of the objects
@@ -94,7 +93,7 @@ fabric.Canvas.prototype.initialize = (function (originalFn) {
   };
   
   /**
-   * Redo to latest undo history.
+   * 重做
    */
   fabric.Canvas.prototype.redo = function (callback) {
     // The undo process will render the new states of the objects
@@ -114,18 +113,19 @@ fabric.Canvas.prototype.initialize = (function (originalFn) {
   
   fabric.Canvas.prototype._loadHistory = function (history, event, callback) {
     var that = this;
-  
-    this.loadFromJSON(history, function () {
-      that.renderAll();
-      that.fire(event);
-      that.historyProcessing = false;
-  
-      if (callback && typeof callback === 'function') callback();
+    this.clear();
+    this.loadFromJSON(history, () => {
+        that.renderAll();
+        that.fire(event);
+        that.historyProcessing = false;
+        if (callback && typeof callback === 'function') callback();
+    }, function(_, object) {
+        object.on("mousedblclick", (options) => dblclickEditing(options, that));
     });
   };
   
   /**
-   * Clear undo and redo history stacks
+   * 清除历史记录
    */
   fabric.Canvas.prototype.clearHistory = function () {
     this.historyUndo = [];
@@ -134,7 +134,7 @@ fabric.Canvas.prototype.initialize = (function (originalFn) {
   };
   
   /**
-   * On the history
+   * 历史记录绑定事件
    */
   fabric.Canvas.prototype.onHistory = function () {
     this.historyProcessing = false;
@@ -143,22 +143,22 @@ fabric.Canvas.prototype.initialize = (function (originalFn) {
   };
   
   /**
-   * Check if there are actions that can be undone
+   * 是否可以撤销
    */
   
   fabric.Canvas.prototype.canUndo = function () {
-    return this.historyUndo.length > 0;
+    return (this.historyUndo ?? []).length > 0;
   };
   
   /**
-   * Check if there are actions that can be redone
+   * 是否可以重做
    */
   fabric.Canvas.prototype.canRedo = function () {
-    return this.historyRedo.length > 0;
+    return (this.historyRedo ?? []).length > 0;
   };
   
   /**
-   * Off the history
+   * 移除历史记录事件
    */
   fabric.Canvas.prototype.offHistory = function () {
     this.historyProcessing = true;

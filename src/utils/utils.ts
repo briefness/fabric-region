@@ -100,7 +100,7 @@ export function limitTextAngleOfGroup(options) {
     canvas.renderAll();
   }
     // 双击编辑文本方法
-  function dblclickEditing(options, canvas) {
+  export function dblclickEditing(options, canvas) {
     // this.item 获取 group 内部对象的方法 [0：背景图, 1：内容文本]
     const activeObject = options.target;
     const text = options.target.item(1);
