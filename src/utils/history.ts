@@ -27,7 +27,7 @@ fabric.Canvas.prototype.initialize = (function (originalFn) {
    * 返回当前canvas字符串
    */
   fabric.Canvas.prototype._historyNext = function () {
-    return JSON.stringify(this.toJSON(this.extraProps));
+    return JSON.stringify(this.toDatalessJSON(this.extraProps));
   };
   
   /**
@@ -65,7 +65,7 @@ fabric.Canvas.prototype.initialize = (function (originalFn) {
    * 历史记录入栈
    */
   fabric.Canvas.prototype._historySaveAction = function (e) {
-    if (this.historyProcessing || e?.target.text == '') return;
+    if (this.historyProcessing || e?.target.isDisabled) return;
     const json = this.historyNextState;
     this.historyUndo.push(json);
     this.historyNextState = this._historyNext();
