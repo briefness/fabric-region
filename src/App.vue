@@ -83,7 +83,7 @@
   import tool_2 from './assets/2.jpg';
   import { deleteControl, rotationControl } from './utils/customRender.ts';
   import { scaleMark, initAligningGuidelines } from './utils/drawTools.ts';
-  import { limitTextAngleOfGroup, limitObjectIntersect, limitObjectArea, createGroup } from './utils/utils.ts';
+  import { limitTextAngleOfGroup, limitObjectIntersect, limitObjectArea, createGroup, dblclickEditing } from './utils/utils.ts';
   import AttributeForm from './components/AttributeForm.vue';
 
   // 选中的对象
@@ -265,21 +265,17 @@
                 evented: true,
             });
             if (clonedObj.type === 'activeSelection') {
-                // active selection needs a reference to the canvas.
                 clonedObj.canvas = fabricCanvas;
                 clonedObj.forEachObject(function(obj) {
-                    // obj.set({goodsShelfType: obj.item(1)?.text});
-                    // forbidStretch(obj);
                     obj.hasBorders = false;
+                    obj.on("mousedblclick", (options) => dblclickEditing(options, fabricCanvas));
                     fabricCanvas.add(obj);
                 });
-                // this should solve the unselectability
                 clonedObj.setCoords();
             } else {
-                // 货架类型同步复制
-                // clonedObj.set({goodsShelfType: clonedObj.item(1)?.text});
-                // forbidStretch(clonedObj);
                 clonedObj.hasBorders = false;
+                clonedObj.on("mousedblclick", (options) => dblclickEditing(options, fabricCanvas));
+                console.log(clonedObj, '22223333')
                 fabricCanvas.add(clonedObj);
             }
             clipboardCanvasObject.top += 10;
