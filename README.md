@@ -1,5 +1,5 @@
 
-# Vue3 + Fabric.js + ant-design-vue
+# Vue3 + Fabric.js
 
 实现简易画布
 
@@ -18,6 +18,14 @@
 - 粘贴 & 复制
 - 框选的对象组，禁用伸缩和旋转
 - 撤销 & 重做 （因为使用loadFromJSON加载记录，所以页面会存在闪烁）
+- H5端预览
+- H5端手势伸缩
+- H5端添加额外信息
+
+# 分支
+
+- master: pc端操作模拟
+- develop-h5: h5端预览
 
 # 启动
 
