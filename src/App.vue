@@ -264,18 +264,20 @@
                 top: clonedObj.top + 10,
                 evented: true,
             });
+            // TODO: 框选多个复制后，操作撤销有问题
             if (clonedObj.type === 'activeSelection') {
                 clonedObj.canvas = fabricCanvas;
                 clonedObj.forEachObject(function(obj) {
                     obj.hasBorders = false;
                     obj.on("mousedblclick", (options) => dblclickEditing(options, fabricCanvas));
+                    // 临时方案，不保存进历史记录
+                    obj.set({ isDisabled: true })
                     fabricCanvas.add(obj);
                 });
                 clonedObj.setCoords();
             } else {
                 clonedObj.hasBorders = false;
                 clonedObj.on("mousedblclick", (options) => dblclickEditing(options, fabricCanvas));
-                console.log(clonedObj, '22223333')
                 fabricCanvas.add(clonedObj);
             }
             clipboardCanvasObject.top += 10;
@@ -418,6 +420,7 @@
   const canvasObjectRotating = () => {
     fabricCanvas.on('object:rotating', function (options) {
         console.log('旋转角度：', options.target.angle)
+        options.target.set({ isDisabled: false });
         selectObjectAngle.value = options.target.angle;
         limitObjectArea(options)
         limitObjectIntersect(options, fabricCanvas);
@@ -428,6 +431,7 @@
   // 监控 fabricCanvas 的 moving 方法
   const canvasObjectMoving = () => {
       fabricCanvas.on('object:moving', function (options) {
+        options.target.set({ isDisabled: false });
         limitObjectArea(options)
         limitObjectIntersect(options, fabricCanvas);
       })
@@ -533,9 +537,11 @@
     }
   }
 
+  // 撤销
   const undoOperate = () => {
     fabricCanvas.undo()
   }
+  // 重做
   const redoOperate = () => {
     fabricCanvas.redo()
   }

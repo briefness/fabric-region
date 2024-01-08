@@ -65,6 +65,7 @@ fabric.Canvas.prototype.initialize = (function (originalFn) {
    * 历史记录入栈
    */
   fabric.Canvas.prototype._historySaveAction = function (e) {
+    // historyProcessing为true或者isDisabled为true时，不触发history:append事件
     if (this.historyProcessing || e?.target.isDisabled) return;
     const json = this.historyNextState;
     this.historyUndo.push(json);
