@@ -117,7 +117,8 @@ export function limitTextAngleOfGroup(options) {
         text: tempText.text,
         visible: true,
       });
-      tempText.set({ isDisabled: false })
+    //   tempText.
+      canvas.onHistory();
       canvas.remove(tempText);
     });
 
@@ -130,7 +131,8 @@ export function limitTextAngleOfGroup(options) {
       visible: false,
     });
     // 将临时文本对象加入画布，并激活，选中进入编辑态
-    tempText.set({ isDisabled: true })
+    // tempText.set({ isDisabled: true })
+    canvas.offHistory();
     canvas.add(tempText);
     canvas.setActiveObject(tempText);
     tempText.selectAll();

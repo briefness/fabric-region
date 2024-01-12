@@ -1,3 +1,4 @@
+
 import { fabric } from 'fabric';
 import { dblclickEditing } from './utils'
 
@@ -65,8 +66,8 @@ fabric.Canvas.prototype.initialize = (function (originalFn) {
    * 历史记录入栈
    */
   fabric.Canvas.prototype._historySaveAction = function (e) {
-    // historyProcessing为true或者isDisabled为true时，不触发history:append事件
-    if (this.historyProcessing || e?.target.isDisabled) return;
+    // historyProcessing为true时，不触发history:append事件
+    if (this.historyProcessing) return;
     const json = this.historyNextState;
     this.historyUndo.push(json);
     this.historyNextState = this._historyNext();
@@ -140,7 +141,7 @@ fabric.Canvas.prototype.initialize = (function (originalFn) {
   fabric.Canvas.prototype.onHistory = function () {
     this.historyProcessing = false;
   
-    this._historySaveAction();
+    // this._historySaveAction();
   };
   
   /**

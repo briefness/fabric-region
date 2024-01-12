@@ -30,10 +30,10 @@
         <Button type="primary" class="mr-10" @click="deleteActiveObject">
             删除
         </Button>
-        <Button type="primary" class="mr-10" @click="undoOperate">
+        <Button type="primary" class="mr-10" :disabled="!canUndo" @click="undoOperate">
             撤销
         </Button>
-        <Button type="primary" @click="redoOperate">
+        <Button type="primary" :disabled="!canRedo" @click="redoOperate">
             重做
         </Button>
         <div class="flex item-center justify-center">
@@ -98,6 +98,10 @@
   let clipboardCanvasObject = null;
   // 伸缩最小比例
   const expansionRatio = 0.01;
+  // 是否可以撤销
+  const canUndo = ref(true);
+  // 是否可以重做
+  const canRedo = ref(false);
   // 初始zoom值
   const initZoom = ref(1);
   // 拖拽的外部图片url
@@ -271,7 +275,8 @@
                     obj.hasBorders = false;
                     obj.on("mousedblclick", (options) => dblclickEditing(options, fabricCanvas));
                     // 临时方案，不保存进历史记录
-                    obj.set({ isDisabled: true })
+                    // obj.set({ isDisabled: true })
+                    fabricCanvas.offHistory();
                     fabricCanvas.add(obj);
                 });
                 clonedObj.setCoords();
@@ -420,7 +425,8 @@
   const canvasObjectRotating = () => {
     fabricCanvas.on('object:rotating', function (options) {
         console.log('旋转角度：', options.target.angle)
-        options.target.set({ isDisabled: false });
+        // options.target.set({ isDisabled: false });
+        fabricCanvas.onHistory();
         selectObjectAngle.value = options.target.angle;
         limitObjectArea(options)
         limitObjectIntersect(options, fabricCanvas);
@@ -431,7 +437,8 @@
   // 监控 fabricCanvas 的 moving 方法
   const canvasObjectMoving = () => {
       fabricCanvas.on('object:moving', function (options) {
-        options.target.set({ isDisabled: false });
+        // options.target.set({ isDisabled: false });
+        fabricCanvas.onHistory();
         limitObjectArea(options)
         limitObjectIntersect(options, fabricCanvas);
       })
@@ -540,10 +547,14 @@
   // 撤销
   const undoOperate = () => {
     fabricCanvas.undo()
+    canUndo.value = fabricCanvas.canUndo();
+    canRedo.value = fabricCanvas.canRedo();
   }
   // 重做
   const redoOperate = () => {
     fabricCanvas.redo()
+    canUndo.value = fabricCanvas.canUndo();
+    canRedo.value = fabricCanvas.canRedo();
   }
 </script>
 <style>
