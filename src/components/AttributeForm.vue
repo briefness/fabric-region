@@ -14,7 +14,7 @@
         </FormItem>
 
         <FormItem
-            label="落位类目"
+            label="测试数据"
             name="type"
         >
             <Input v-model:value="formState.type" />

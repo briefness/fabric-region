@@ -340,6 +340,8 @@
         if (options.selected?.length < 2) {
             // 被选中的对象数据
             selectedObject.value = options.selected[0];
+            // 赋值 旋转角度
+            selectObjectAngle.value = options.selected[0].angle;
             console.log('选中对象created：', selectedObject.value);
         }
         forbidStretch(options.selected?.length > 1);
@@ -349,6 +351,8 @@
         if (options.selected?.length < 2) {
             // 被选中的对象数据
             selectedObject.value = options.selected[0];
+            // 赋值 旋转角度
+            selectObjectAngle.value = options.selected[0].angle;
             console.log('选中对象updated：', selectedObject.value);
         }
         forbidStretch(options.selected?.length > 1);
@@ -429,7 +433,7 @@
         fabricCanvas.onHistory();
         selectObjectAngle.value = options.target.angle;
         limitObjectArea(options)
-        limitObjectIntersect(options, fabricCanvas);
+        // limitObjectIntersect(options, fabricCanvas);
         limitTextAngleOfGroup(options);
       })
   }
