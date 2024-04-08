@@ -184,7 +184,7 @@
     // 绘制背景前清空画布
     // fabricCanvas.clear();
     // bgImage为图片路径
-    fabric.Image.fromURL(bgImageObj, function(img) {
+    fabric.Image.fromURL(bgImageObj + '?v=' + Math.random(), function(img) {
       // 设置背景图片，并设置其透明度
       fabricCanvas.setBackgroundImage(img, fabricCanvas.renderAll.bind(fabricCanvas), { opacity: 0.3 });
       // 设置canvas的宽高
@@ -195,7 +195,7 @@
       fabricCanvas._historySaveAction();
       // 绘制刻度线
     //   scaleMark(fabricCanvas);
-    });
+    }, {crossOrigin: 'anonymous'});
   }
 
   // 拖拽tool icon
@@ -368,7 +368,7 @@
 
   // 绘制图片
   const drawSvg = (pointerVpt) => {
-    const isSvg = !(/\.jpg$/.test(dropImgUrl.value))
+    const isSvg = /\.svg$/.test(dropImgUrl.value)
     if (isSvg) {
         fabric.loadSVGFromURL(dropImgUrl.value, function(objects, options) {
             var obj = fabric.util.groupSVGElements(objects, options);
@@ -387,9 +387,7 @@
             createGroup([obj, text], pointerVpt, fabricCanvas);
         });
     } else {
-        fabric.util.loadImage(dropImgUrl.value, function(image) {
-            var obj = new fabric.Image(image);
-            obj.scale(0.1);
+        fabric.Image.fromURL(dropImgUrl.value + '?v=' + Math.random(), function(obj) {
             obj.set({
                 originX: 'center',
                 originY: 'center'
@@ -401,7 +399,7 @@
                 originY: 'center'
             });
             createGroup([obj, text], pointerVpt, fabricCanvas);
-        })
+        }, {crossOrigin: 'anonymous'});
     }
   }
 
