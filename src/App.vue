@@ -91,6 +91,7 @@
   
   // fabric实例化对象
   // 基于现有fabric版本，因对响应式不友好，不建议把fabric的实例定义为响应式数据
+  // 待验证：如果想要使用响应式数据，可以尝试把fabric的所有对象都转化为响应式
   let fabricCanvas = null;
   // 历史记录事件
   const historyFn = ref(null)

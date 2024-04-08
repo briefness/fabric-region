@@ -72,12 +72,12 @@ export function rotationControl() {
     }
     // 旋转图标
     fabric.Object.prototype.controls.mtr = new fabric.Control({
-      x: 0,
-      y: -1.4,
+      x: 0, // 操作点的相对位置，0,0是对象的中心，而-0.5（左）或0.5（右）是操作元素的左右边界线。
+      y: -0.5, // 操作点的相对位置，0,0是对象的中心，而-0.5（顶部）或0.5（底部）是操作元素的上下边界线
       cursorStyleHandler: fabric.controlsUtils.rotationStyleHandler,
       actionHandler: fabric.controlsUtils.rotationWithSnapping,
-      offsetY: 16,
-      actionName: 'rotate',
-      render: renderIconRotate,
+      offsetY: -6, // 控件相对于定义位置的垂直偏移，以像素为单位；正偏移将控件移到底部，负偏移将控件移动到顶部。
+      actionName: 'rotate', // 操作点的名称，因为默认是缩放，所以默认’scale’。
+      render: renderIconRotate, // 自定义渲染。
     });
 }
